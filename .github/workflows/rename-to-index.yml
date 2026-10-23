@@ -1,0 +1,54 @@
+name: Rename temp to index
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify and rename with size checks
+        run: |
+          set -e
+          test -f render-to-reality.html
+          SRC_SIZE=$(wc -c < render-to-reality.html)
+          echo "Temp size: $SRC_SIZE"
+          if [ "$SRC_SIZE" -lt 20000000 ]; then echo "Temp file too small: $SRC_SIZE" >&2; exit 1; fi
+          cp render-to-reality.html index.html
+          DST_SIZE=$(wc -c < index.html)
+          echo "New index size: $DST_SIZE"
+          if [ "$DST_SIZE" -ne "$SRC_SIZE" ]; then echo "Size mismatch" >&2; exit 1; fi
+          rm render-to-reality.html
+          git config user.name "abubakarshahzadakhtar-spec"
+          git config user.email "abubakarshahzadakhtar@gmail.com"
+          git add -A
+          git status --short
+          git commit -m "Replace index.html with SEO version"
+          git push
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
