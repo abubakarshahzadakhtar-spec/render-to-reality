@@ -430,18 +430,48 @@ fb.hidden=false;
 }
 if(!img){showPanel();}
 else{
+// Load the detail image from the EXACT source that already rendered on the
+// card: img.currentSrc is the resolved URL the browser successfully loaded
+// for the card, so the detail view can never point at a different path than
+// the working card image. The remaining gallery entries are resolved
+// against the same folder as that working source.
+var firstSrc=img.currentSrc||img.src;
+var base=firstSrc.slice(0,firstSrc.lastIndexOf('/')+1);
+var rawGal=(c.getAttribute('data-gallery')||img.getAttribute('src')).split(',');
+var gal=rawGal.map(function(entry,j){
+if(j===0)return firstSrc;
+return base+entry.split('/').pop();
+});
+// Failure is decided ONLY by a real error event for the src just requested,
+// guarded by a token so a stale event from a previous image cannot hide the
+// current one. The old code also ran a synchronous
+// "complete && naturalWidth===0 -> showPanel()" check immediately after
+// setting src; some browsers answer that check before the freshly-set image
+// has started loading, which made EVERY detail view fall back to the panel.
+var loadToken=0;
+var loadDetailImage=function(url){
+var token=++loadToken;
 fb.hidden=true;dImg.style.display='';
-dImg.onerror=showPanel;
-var gal=(c.getAttribute('data-gallery')||img.getAttribute('src')).split(',');
-dImg.setAttribute('src',gal[0]);dImg.setAttribute('alt',img.getAttribute('alt'));
-if(dImg.complete&&dImg.naturalWidth===0)showPanel();
+dImg.onload=function(){if(token===loadToken){fb.hidden=true;dImg.style.display='';}};
+dImg.onerror=function(){if(token===loadToken)showPanel();};
+var cur=dImg.currentSrc||dImg.src;
+if(cur===url){
+if(dImg.naturalWidth>0){fb.hidden=true;dImg.style.display='';}
+else if(dImg.complete){showPanel();}
+return;
+}
+dImg.setAttribute('src',url);
+if(dImg.complete&&dImg.naturalWidth>0){fb.hidden=true;dImg.style.display='';}
+};
+dImg.setAttribute('alt',img.getAttribute('alt'));
+loadDetailImage(gal[0]);
 if(gal.length>1){
 gal.forEach(function(src,j){
 var b=document.createElement('button');b.type='button';b.className='pd-thumb'+(j===0?' active':'');
 b.setAttribute('aria-label','Show image '+(j+1)+' of this project');
 var t=document.createElement('img');t.src=src;t.alt='';t.loading='lazy';b.appendChild(t);
 b.addEventListener('click',function(){
-dImg.onerror=showPanel;dImg.setAttribute('src',src);
+loadDetailImage(src);
 thumbs.querySelectorAll('.pd-thumb').forEach(function(x){x.classList.remove('active')});b.classList.add('active');
 });
 thumbs.appendChild(b);
